@@ -1413,88 +1413,58 @@ func (c *ctxt7) oplook(p *obj.Prog) *Optab {
 	return &ops[0]
 }
 
-func cmp(a int, b int) bool {
+func cmp(a, b int) bool {
 	if a == b {
 		return true
 	}
 	switch a {
 	case C_RSP:
-		if b == C_REG {
-			return true
-		}
+		return b == C_REG
 
 	case C_REG:
-		if b == C_ZCON {
-			return true
-		}
+		return b == C_ZCON
 
 	case C_ADDCON0:
-		if b == C_ZCON || b == C_ABCON0 {
-			return true
-		}
+		return b == C_ZCON || b == C_ABCON0
 
 	case C_ADDCON:
-		if b == C_ZCON || b == C_ABCON0 || b == C_ADDCON0 || b == C_ABCON {
-			return true
-		}
+		return b == C_ZCON || b == C_ABCON0 || b == C_ADDCON0 || b == C_ABCON
 
 	case C_BITCON:
-		if b == C_ABCON0 || b == C_ABCON || b == C_MBCON {
-			return true
-		}
+		return b == C_ABCON0 || b == C_ABCON || b == C_MBCON
 
 	case C_MOVCON:
-		if b == C_MBCON || b == C_ZCON || b == C_ADDCON0 {
-			return true
-		}
+		return b == C_MBCON || b == C_ZCON || b == C_ADDCON0
 
 	case C_LCON:
-		if b == C_ZCON || b == C_BITCON || b == C_ADDCON || b == C_ADDCON0 || b == C_ABCON || b == C_ABCON0 || b == C_MBCON || b == C_MOVCON {
-			return true
-		}
+		return b == C_ZCON || b == C_BITCON || b == C_ADDCON || b == C_ADDCON0 || b == C_ABCON || b == C_ABCON0 || b == C_MBCON || b == C_MOVCON
 
 	case C_VCON:
 		return cmp(C_LCON, b)
 
 	case C_LACON:
-		if b == C_AACON {
-			return true
-		}
+		return b == C_AACON
 
 	case C_SEXT2:
-		if b == C_SEXT1 {
-			return true
-		}
+		return b == C_SEXT1
 
 	case C_SEXT4:
-		if b == C_SEXT1 || b == C_SEXT2 {
-			return true
-		}
+		return b == C_SEXT1 || b == C_SEXT2
 
 	case C_SEXT8:
-		if b >= C_SEXT1 && b <= C_SEXT4 {
-			return true
-		}
+		return b >= C_SEXT1 && b <= C_SEXT4
 
 	case C_SEXT16:
-		if b >= C_SEXT1 && b <= C_SEXT8 {
-			return true
-		}
+		return b >= C_SEXT1 && b <= C_SEXT8
 
 	case C_LEXT:
-		if b >= C_SEXT1 && b <= C_SEXT16 {
-			return true
-		}
+		return b >= C_SEXT1 && b <= C_SEXT16
 
 	case C_PSAUTO:
-		if b == C_PSAUTO_8 {
-			return true
-		}
+		return b == C_PSAUTO_8
 
 	case C_PPAUTO:
-		if b == C_PSAUTO_8 {
-			return true
-		}
+		return b == C_PSAUTO_8
 
 	case C_UAUTO4K:
 		switch b {
@@ -1535,9 +1505,7 @@ func cmp(a int, b int) bool {
 		return cmp(C_NPAUTO, b)
 
 	case C_PSOREG:
-		if b == C_ZOREG || b == C_PSOREG_8 {
-			return true
-		}
+		return b == C_ZOREG || b == C_PSOREG_8
 
 	case C_PPOREG:
 		switch b {
@@ -1584,9 +1552,7 @@ func cmp(a int, b int) bool {
 		return cmp(C_NPOREG, b)
 
 	case C_LBRA:
-		if b == C_SBRA {
-			return true
-		}
+		return b == C_SBRA
 	}
 
 	return false
@@ -2129,11 +2095,11 @@ func (c *ctxt7) chipfloat7(e float64) int {
 }
 
 /* form offset parameter to SYS; special register number */
-func SYSARG5(op0 int, op1 int, Cn int, Cm int, op2 int) int {
+func SYSARG5(op0, op1, Cn, Cm, op2 int) int {
 	return op0<<19 | op1<<16 | Cn<<12 | Cm<<8 | op2<<5
 }
 
-func SYSARG4(op1 int, Cn int, Cm int, op2 int) int {
+func SYSARG4(op1, Cn, Cm, op2 int) int {
 	return SYSARG5(0, op1, Cn, Cm, op2)
 }
 
@@ -3125,11 +3091,12 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if v < -512 || v > 504 || v%8 != 0 {
 			c.ctxt.Diag("invalid offset %v\n", p)
 		}
-		if o.scond == C_XPOST {
+		switch o.scond {
+		case C_XPOST:
 			o1 |= 1 << 23
-		} else if o.scond == C_XPRE {
+		case C_XPRE:
 			o1 |= 3 << 23
-		} else {
+		default:
 			o1 |= 2 << 23
 		}
 		o1 |= 1 << 22
@@ -3149,11 +3116,12 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("invalid offset %v\n", p)
 		}
 
-		if o.scond == C_XPOST {
+		switch o.scond {
+		case C_XPOST:
 			o1 |= 1 << 23
-		} else if o.scond == C_XPRE {
+		case C_XPRE:
 			o1 |= 3 << 23
-		} else {
+		default:
 			o1 |= 2 << 23
 		}
 		o1 |= uint32(int64(2<<30|5<<27|((uint32(v)/8)&0x7f)<<15) | (p.From.Offset&31)<<10 | int64(uint32(r&31)<<5) | int64(p.From.Reg&31))
@@ -3223,21 +3191,21 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		switch af {
 		case ARNG_16B:
 			Q = 1
-			size = 0
+			//size = 0
 		case ARNG_2D:
 			Q = 1
 			size = 3
 		case ARNG_2S:
-			Q = 0
+			//Q = 0
 			size = 2
 		case ARNG_4H:
-			Q = 0
+			//Q = 0
 			size = 1
 		case ARNG_4S:
 			Q = 1
 			size = 2
 		case ARNG_8B:
-			Q = 0
+			//Q = 0
 			size = 0
 		case ARNG_8H:
 			Q = 1
@@ -3297,11 +3265,12 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("offset out of range%v\n", p)
 		}
 
-		if o.scond == C_XPOST {
+		switch o.scond {
+		case C_XPOST:
 			o2 |= 1 << 23
-		} else if o.scond == C_XPRE {
+		case C_XPRE:
 			o2 |= 3 << 23
-		} else {
+		default:
 			o2 |= 2 << 23
 		}
 
@@ -3321,11 +3290,12 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("invalid ldp source: %v\n", p)
 		}
 
-		if o.scond == C_XPOST {
+		switch o.scond {
+		case C_XPOST:
 			o3 |= 1 << 23
-		} else if o.scond == C_XPRE {
+		case C_XPRE:
 			o3 |= 3 << 23
-		} else {
+		default:
 			o3 |= 2 << 23
 		}
 
@@ -3352,11 +3322,12 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if v < 0 || v > 4095 {
 			c.ctxt.Diag("offset out of range%v\n", p)
 		}
-		if o.scond == C_XPOST {
+		switch o.scond {
+		case C_XPOST:
 			o2 |= 1 << 23
-		} else if o.scond == C_XPRE {
+		case C_XPRE:
 			o2 |= 3 << 23
-		} else {
+		default:
 			o2 |= 2 << 23
 		}
 
@@ -3375,11 +3346,12 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("invalid stp destination: %v\n", p)
 		}
 
-		if o.scond == C_XPOST {
+		switch o.scond {
+		case C_XPOST:
 			o3 |= 1 << 23
-		} else if o.scond == C_XPRE {
+		case C_XPRE:
 			o3 |= 3 << 23
-		} else {
+		default:
 			o3 |= 2 << 23
 		}
 		o1 = c.omovlit(AMOVD, p, &p.To, REGTMP)
@@ -3427,11 +3399,11 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			imm5 = 8
 			imm5 |= uint32(p.From.Index) << 4
 		case ARNG_2S:
-			Q = 0
+			//Q = 0
 			imm5 = 4
 			imm5 |= uint32(p.From.Index) << 3
 		case ARNG_4H:
-			Q = 0
+			//Q = 0
 			imm5 = 2
 			imm5 |= uint32(p.From.Index) << 2
 		case ARNG_4S:
@@ -3439,7 +3411,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			imm5 = 4
 			imm5 |= uint32(p.From.Index) << 3
 		case ARNG_8B:
-			Q = 0
+			//Q = 0
 			imm5 = 1
 			imm5 |= uint32(p.From.Index) << 1
 		case ARNG_8H:
@@ -3509,16 +3481,16 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			Q = 1
 			imm5 = 8
 		case ARNG_2S:
-			Q = 0
+			//Q = 0
 			imm5 = 4
 		case ARNG_4H:
-			Q = 0
+			//Q = 0
 			imm5 = 2
 		case ARNG_4S:
 			Q = 1
 			imm5 = 4
 		case ARNG_8B:
-			Q = 0
+			//Q = 0
 			imm5 = 1
 		case ARNG_8H:
 			Q = 1
@@ -3543,13 +3515,13 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		size := 0
 		switch af {
 		case ARNG_8B:
-			Q = 0
-			size = 0
+			//Q = 0
+			//size = 0
 		case ARNG_16B:
 			Q = 1
-			size = 0
+			//size = 0
 		case ARNG_4H:
-			Q = 0
+			//Q = 0
 			size = 1
 		case ARNG_8H:
 			Q = 1
@@ -3593,13 +3565,13 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		size := 0
 		switch af {
 		case ARNG_8B:
-			Q = 0
-			size = 0
+			//Q = 0
+			//size = 0
 		case ARNG_16B:
 			Q = 1
-			size = 0
+			//size = 0
 		case ARNG_4H:
-			Q = 0
+			//Q = 0
 			size = 1
 		case ARNG_8H:
 			Q = 1
@@ -3622,7 +3594,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		Q := 0
 		switch at {
 		case ARNG_8B:
-			Q = 0
+			//Q = 0
 		case ARNG_16B:
 			Q = 1
 		default:
@@ -5126,24 +5098,14 @@ func (c *ctxt7) opextr(p *obj.Prog, a obj.As, v int32, rn int, rm int, rt int) u
  */
 func movesize(a obj.As) int {
 	switch a {
-	case AMOVD:
+	case AMOVD, AFMOVD:
 		return 3
-
-	case AMOVW, AMOVWU, AVMOVS:
+	case AMOVW, AMOVWU, AVMOVS, AFMOVS:
 		return 2
-
 	case AMOVH, AMOVHU:
 		return 1
-
 	case AMOVB, AMOVBU:
 		return 0
-
-	case AFMOVS:
-		return 2
-
-	case AFMOVD:
-		return 3
-
 	default:
 		return -1
 	}
