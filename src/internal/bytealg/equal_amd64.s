@@ -11,14 +11,14 @@ TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT,$0-25
 	// BX = b    (want in DI)
 	// CX = size (want in BX)
 	CMPQ	AX, BX
-	JNE	neq
-	MOVQ	$1, AX	// return 1
-	RET
-neq:
+	JE	eq
 	MOVQ	AX, SI
 	MOVQ	BX, DI
 	MOVQ	CX, BX
 	JMP	memeqbody<>(SB)
+eq:
+	SETEQ	AX	// return 1
+	RET
 
 // memequal_varlen(a, b unsafe.Pointer) bool
 TEXT runtime·memequal_varlen<ABIInternal>(SB),NOSPLIT,$0-17
@@ -26,14 +26,14 @@ TEXT runtime·memequal_varlen<ABIInternal>(SB),NOSPLIT,$0-17
 	// BX = b       (want in DI)
 	// 8(DX) = size (want in BX)
 	CMPQ	AX, BX
-	JNE	neq
-	MOVQ	$1, AX	// return 1
-	RET
-neq:
+	JE	eq
 	MOVQ	AX, SI
 	MOVQ	BX, DI
 	MOVQ	8(DX), BX    // compiler stores size at offset 8 in the closure
 	JMP	memeqbody<>(SB)
+eq:
+	SETEQ	AX	// return 1
+	RET
 
 // Input:
 //   a in SI
@@ -43,16 +43,36 @@ neq:
 //   result in AX
 TEXT memeqbody<>(SB),NOSPLIT,$0-0
 	CMPQ	BX, $8
-	JB	small
-	CMPQ	BX, $64
-	JB	bigloop
-	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
-	JE	hugeloop_avx2
+	JA	over8
+	JE	eight
 
-	// 64 bytes at a time using xmm registers
-hugeloop:
+	// check if length is zero
+	CMPQ	BX, $0
+	JE	equal
+
+	// length is <= 8 bytes at this point
+	LEAQ	0(BX*8), CX
+	NEGQ	CX
+	CMPB	SI, $0xf8
+	JA	si_high
+	// load at SI won't cross a page boundary.
+	MOVQ	(SI), SI
+	JMP	si_finish
+
+over8: // length > 8 bytes
 	CMPQ	BX, $64
-	JB	bigloop
+	JB	over8loop_entrypoint
+	JE	sixtyfour
+	// check if AVX2 is present.
+	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
+	JE	over64loop_avx2_entrypoint
+	JMP	over64loop_entrypoint
+
+over64loop: // length > 64 bytes
+	CMPQ	BX, $64
+	JB	over8loop
+	JE	sixtyfour
+over64loop_entrypoint: // compare 64 bytes at a time using xmm registers
 	MOVOU	(SI), X0
 	MOVOU	(DI), X1
 	MOVOU	16(SI), X2
@@ -73,14 +93,15 @@ hugeloop:
 	ADDQ	$64, DI
 	SUBQ	$64, BX
 	CMPL	DX, $0xffff
-	JEQ	hugeloop
+	JEQ	over64loop
 	XORQ	AX, AX	// return 0
 	RET
 
-	// 64 bytes at a time using ymm registers
-hugeloop_avx2:
+over64loop_avx2: // length > 64 bytes
 	CMPQ	BX, $64
-	JB	bigloop_avx2
+	JB	over8loop_avx2
+	JE	sixtyfour
+over64loop_avx2_entrypoint: // compare 64 bytes at a time using ymm registers
 	VMOVDQU	(SI), Y0
 	VMOVDQU	(DI), Y1
 	VMOVDQU	32(SI), Y2
@@ -93,49 +114,97 @@ hugeloop_avx2:
 	ADDQ	$64, DI
 	SUBQ	$64, BX
 	CMPL	DX, $0xffffffff
-	JEQ	hugeloop_avx2
+	JEQ	over64loop_avx2
 	VZEROUPPER
 	XORQ	AX, AX	// return 0
 	RET
 
-bigloop_avx2:
+over8loop_avx2:
 	VZEROUPPER
 
-	// 8 bytes at a time using 64-bit register
-bigloop:
+over8loop: // length > 8 bytes
 	CMPQ	BX, $8
-	JBE	leftover
+	JBE	under8
+	JE	 eight
+	CMPQ	BX, $32
+	JE	thirtytwo
+over8loop_entrypoint: // compare 8 bytes at a time using 64-bit register
 	MOVQ	(SI), CX
 	MOVQ	(DI), DX
 	ADDQ	$8, SI
 	ADDQ	$8, DI
 	SUBQ	$8, BX
 	CMPQ	CX, DX
-	JEQ	bigloop
+	JEQ	over8loop
 	XORQ	AX, AX	// return 0
 	RET
 
-	// remaining 0-8 bytes
-leftover:
+under8: // length < 8 bytes
 	MOVQ	-8(SI)(BX*1), CX
 	MOVQ	-8(DI)(BX*1), DX
 	CMPQ	CX, DX
 	SETEQ	AX
 	RET
 
-small:
-	CMPQ	BX, $0
-	JEQ	equal
+sixtyfour: // length == 64 bytes
+	MOVQ	(SI), AX
+	MOVQ	(DI), BX
+	ADDQ	$8, SI
+	ADDQ	$8, DI
+	CMPQ	AX, BX
+	JNE	notequal
+// length == 56 bytes
+	MOVQ	(SI), CX
+	MOVQ	(DI), DX
+	ADDQ	$8, SI
+	ADDQ	$8, DI
+	CMPQ	CX, DX
+	JNE	notequal
+// length == 48 bytes
+	MOVQ	(SI), AX
+	MOVQ	(DI), BX
+	ADDQ	$8, SI
+	ADDQ	$8, DI
+	CMPQ	AX, BX
+	JNE	notequal
+// length == 40 bytes
+	MOVQ	(SI), CX
+	MOVQ	(DI), DX
+	ADDQ	$8, SI
+	ADDQ	$8, DI
+	CMPQ	CX, DX
+	JNE	notequal
+thirtytwo: // length == 32 bytes
+	MOVQ	(SI), AX
+	MOVQ	(DI), BX
+	ADDQ	$8, SI
+	ADDQ	$8, DI
+	CMPQ	AX, BX
+	JNE	notequal
+// length == 24 bytes
+	MOVQ	(SI), CX
+	MOVQ	(DI), DX
+	ADDQ	$8, SI
+	ADDQ	$8, DI
+	CMPQ	CX, DX
+	JNE	notequal
+// length == 16 bytes
+	MOVQ	(SI), AX
+	MOVQ	(DI), BX
+	ADDQ	$8, SI
+	ADDQ	$8, DI
+	CMPQ	AX, BX
+	JNE	notequal
+eight: // length == 8 bytes
+	MOVQ	(SI), CX
+	MOVQ	(DI), DX
+	CMPQ	CX, DX
+	SETEQ	AX
+	RET
+notequal:
+	XORQ	AX, AX	// return 0
+	RET
 
-	LEAQ	0(BX*8), CX
-	NEGQ	CX
-
-	CMPB	SI, $0xf8
-	JA	si_high
-
-	// load at SI won't cross a page boundary.
-	MOVQ	(SI), SI
-	JMP	si_finish
 si_high:
 	// address ends in 11111xxx. Load up to bytes we want, move to correct position.
 	MOVQ	-8(SI)(BX*1), SI
