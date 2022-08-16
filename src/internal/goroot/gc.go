@@ -31,8 +31,8 @@ func IsStandardPackage(goroot, compiler, path string) bool {
 
 // gccgoSearch holds the gccgo search directories.
 type gccgoDirs struct {
-	once sync.Once
 	dirs []string
+	once sync.Once
 }
 
 // gccgoSearch is used to check whether a gccgo package exists in the

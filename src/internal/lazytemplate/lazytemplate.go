@@ -17,10 +17,10 @@ import (
 // Template is a wrapper around text/template.Template, where the underlying
 // template will be parsed the first time it is needed.
 type Template struct {
-	name, text string
-
-	once sync.Once
 	tmpl *template.Template
+	name string
+	text string
+	once sync.Once
 }
 
 func (r *Template) tp() *template.Template {

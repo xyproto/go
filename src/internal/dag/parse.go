@@ -48,9 +48,9 @@ import (
 )
 
 type Graph struct {
-	Nodes   []string
 	byLabel map[string]int
 	edges   map[string]map[string]bool
+	Nodes   []string
 }
 
 func newGraph() *Graph {
@@ -233,9 +233,9 @@ func parseRules(rules string) (out []rule, err error) {
 
 // A rulesParser parses the depsRules syntax described above.
 type rulesParser struct {
-	lineno   int
 	lastWord string
 	text     string
+	lineno   int
 }
 
 // syntaxError reports a parsing error.

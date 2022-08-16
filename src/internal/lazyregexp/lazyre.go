@@ -16,9 +16,9 @@ import (
 // Regexp is a wrapper around regexp.Regexp, where the underlying regexp will be
 // compiled the first time it is needed.
 type Regexp struct {
+	rx   *regexp.Regexp
 	str  string
 	once sync.Once
-	rx   *regexp.Regexp
 }
 
 func (r *Regexp) re() *regexp.Regexp {
