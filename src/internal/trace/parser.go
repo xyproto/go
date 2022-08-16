@@ -130,10 +130,10 @@ func parse(r io.Reader, bin string) (int, ParseResult, error) {
 
 // rawEvent is a helper type used during parsing.
 type rawEvent struct {
-	off   int
-	typ   byte
 	args  []uint64
 	sargs []string
+	off   int
+	typ   byte
 }
 
 // readTrace does wire-format parsing and verification.
@@ -588,17 +588,17 @@ func postProcessTrace(ver int, events []*Event) error {
 		gWaiting
 	)
 	type gdesc struct {
-		state        int
 		ev           *Event
 		evStart      *Event
 		evCreate     *Event
 		evMarkAssist *Event
+		state        int
 	}
 	type pdesc struct {
-		running bool
-		g       uint64
 		evSTW   *Event
 		evSweep *Event
+		g       uint64
+		running bool
 	}
 
 	gs := make(map[uint64]gdesc)
