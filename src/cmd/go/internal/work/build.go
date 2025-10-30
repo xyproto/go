@@ -246,6 +246,7 @@ func init() {
 	CmdInstall.Run = runInstall
 
 	CmdBuild.Flag.StringVar(&cfg.BuildO, "o", "", "output file or directory")
+	CmdInstall.Flag.StringVar(&cfg.BuildO, "o", "", "output file or directory")
 
 	AddBuildFlags(CmdBuild, DefaultBuildFlags)
 	AddBuildFlags(CmdInstall, DefaultBuildFlags)
